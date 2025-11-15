@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TECHS応募フォーム</title>
+    <style>
+      body{font-family:'Noto Sans JP',sans-serif;padding:20px}
+      h2{color:#ff6a00}
+      label{display:block;margin-top:10px;font-weight:600}
+      input,textarea{width:100%;padding:8px;margin-top:4px;border-radius:8px;border:1px solid #ccc}
+      button{width:100%;padding:10px;margin-top:20px;border:none;background:#ff6a00;color:#fff;font-weight:bold;border-radius:10px}
+      #status{margin:6px 0 12px;color:#444}
+    </style>
+  </head>
+  <body>
+    <h3 id="status">読み込み中...</h3>
+    <h2>TECHS応募フォーム</h2>
+    <p>下記に入力して送信ボタンを押してください。</p>
+
+    <label>お名前</label><input id="name">
+    <label>電話番号</label><input id="tel">
+    <label>メールアドレス</label><input id="email">
+    <label>経験・未経験</label><input id="experience">
+    <label>資格</label><input id="license">
+    <label>居住区</label><input id="address">
+    <label>志望動機</label><textarea id="motivation"></textarea>
+    <button id="sendBtn" type="button">送信</button>
+
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script>
+      const LIFF_ID = "2008387877-rb4dDBWq";
+      const API_URL = "https://script.google.com/macros/s/AKfycbwhFtxc7AEb6f6aNoNVTm_7SeOQjFYcJgEScrgBk3VzYUEz3ZZXfZwApofcjQALXmxb/exec";
+      const s = t => document.getElementById('status').textContent = t;
+
+      async function init(){
+        try{
+          s("LIFF初期化中…");
+          const init = liff.init({ liffId: LIFF_ID });
+          const timeout = new Promise((_,rej)=>setTimeout(()=>rej(new Error("INIT_TIMEOUT")),8000));
+          await Promise.race([init, timeout]);
+          s("LIFF初期化完了 ✅");
+          if(!liff.isLoggedIn()){ s("ログインへ遷移中…"); liff.login(); return; }
+
+          const profile = await liff.getProfile();
+          document.getElementById("sendBtn").addEventListener("click",()=>sendForm(profile));
+        }catch(e){
+          s("初期化エラー: "+(e.message||e));
+        }
+      }
+
+      async function sendForm(profile){
+        const btn=document.getElementById("sendBtn");
+        btn.disabled=true; btn.textContent="送信中…";
+        const data={
+          token:"TECHS2025",
+          form:{
+            name:v("name"),phone:v("tel"),email:v("email"),
+            experience:v("experience"),license:v("license"),
+            address:v("address"),motivation:v("motivation")
+          },
+          user:{userId:profile.userId,displayName:profile.displayName}
+        };
+        try{
+          const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+          if(!res.ok) throw new Error("HTTP "+res.status);
+          const json=await res.json();
+          alert(json.message||"送信完了しました！");
+          if(liff.isInClient()) liff.closeWindow();
+        }catch(err){
+          alert("送信エラー："+err.message);
+        }finally{
+          btn.disabled=false; btn.textContent="送信";
+        }
+      }
+      const v=id=>document.getElementById(id).value.trim();
+      init();
+    </script>
+  </body>
+</html>
