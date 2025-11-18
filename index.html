@@ -11,91 +11,121 @@
       input,textarea{width:100%;padding:8px;margin-top:4px;border-radius:8px;border:1px solid #ccc}
       button{width:100%;padding:10px;margin-top:20px;border:none;background:#ff6a00;color:#fff;font-weight:bold;border-radius:10px}
       #status{margin:6px 0 12px;color:#444}
+      #thanks p{margin-top:10px;line-height:1.6;text-align:center}
     </style>
   </head>
   <body>
-    <h3 id="status">読み込み中...</h3>
+    <!-- ▼ステータス表示は消すので h3 は削除しました -->
+
     <h2>TECHS応募フォーム</h2>
     <p>下記に入力して送信ボタンを押してください。</p>
 
-    <label>お名前</label><input id="name">
-    <label>電話番号</label><input id="tel">
-    <label>メールアドレス</label><input id="email">
-    <label>経験・未経験</label><input id="experience">
-    <label>資格</label><input id="license">
-    <label>居住区</label><input id="address">
-    <label>志望動機</label><textarea id="motivation"></textarea>
-    <button id="sendBtn" type="button">送信</button>
+    <!-- ▼フォーム一式をラップしておく -->
+    <div id="formArea">
+      <label>お名前</label><input id="name">
+      <label>電話番号</label><input id="tel">
+      <label>メールアドレス</label><input id="email">
+      <label>経験・未経験</label><input id="experience">
+      <label>資格</label><input id="license">
+      <label>居住区</label><input id="address">
+      <label>志望動機</label><textarea id="motivation"></textarea>
+      <button id="sendBtn" type="button">送信</button>
+    </div>
+
+    <!-- ▼送信後にだけ見せるサンクス画面 -->
+    <div id="thanks" style="display:none;">
+      <p>
+        ご応募ありがとうございます！<br>
+        担当者より順次ご連絡いたします。
+      </p>
+      <button id="okBtn" type="button">OK</button>
+    </div>
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script>
-  const LIFF_ID = "2008387877-jJ8Z4gW9";
-  const API_URL = "https://script.google.com/macros/s/AKfycbwoPPlmE60EmUMyYp7Jeb7iAfa0F71U1g1BP05hGbGn-YVD7VzWBbjWlDrLxDV4U3uR/exec"; // WebアプリのURL
+    <script>
+      const LIFF_ID = "2008387877-jJ8Z4gW9";
+      const API_URL = "https://script.google.com/macros/s/AKfycbwoPPlmE60EmUMyYp7Jeb7iAfa0F71U1g1BP05hGbGn-YVD7VzWBbjWlDrLxDV4U3uR/exec"; // WebアプリのURL
 
-  async function init() {
-    const statusEl = document.getElementById("status");
-    if (statusEl) statusEl.textContent = "LIFF初期化中...";
+      async function init() {
+        await liff.init({ liffId: LIFF_ID });
 
-    await liff.init({ liffId: LIFF_ID });
-
-    if (statusEl) statusEl.textContent = "LIFF初期化完了";
-
-    if (!liff.isLoggedIn()) {
-      liff.login();
-      return;
-    }
-
-    const profile = await liff.getProfile();
-
-    const btn = document.getElementById("sendBtn");
-    btn.addEventListener("click", async () => {
-      const data = {
-        token: "TECHS2025",
-        form: {
-          name: v("name"),
-          phone: v("tel"),
-          email: v("email"),
-          experience: v("experience"),
-          license: v("license"),
-          address: v("address"),
-          motivation: v("motivation")
-        },
-        user: {
-          userId: profile.userId,
-          displayName: profile.displayName
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
         }
-      };
 
-      btn.disabled = true;
-      btn.textContent = "送信中...";
+        const profile = await liff.getProfile();
 
-      try {
-        // ★ポイント：no-cors & ヘッダ指定なし
-        await fetch(API_URL, {
-          method: "POST",
-          mode: "no-cors",
-          body: JSON.stringify(data)
+        const btn = document.getElementById("sendBtn");
+        const formArea = document.getElementById("formArea");
+        const thanks = document.getElementById("thanks");
+        const okBtn = document.getElementById("okBtn");
+
+        // 送信ボタン
+        btn.addEventListener("click", async () => {
+          const data = {
+            token: "TECHS2025",
+            form: {
+              name: v("name"),
+              phone: v("tel"),
+              email: v("email"),
+              experience: v("experience"),
+              license: v("license"),
+              address: v("address"),
+              motivation: v("motivation")
+            },
+            user: {
+              userId: profile.userId,
+              displayName: profile.displayName
+            }
+          };
+
+          btn.disabled = true;
+          btn.textContent = "送信中...";
+
+          try {
+            // no-cors & ヘッダ無し → 既存GAS(doPost)と同じ送り方
+            await fetch(API_URL, {
+              method: "POST",
+              mode: "no-cors",
+              body: JSON.stringify(data)
+            });
+
+            // 成功した前提でフォームを隠し、サンクス画面を表示
+            formArea.style.display = "none";
+            thanks.style.display = "block";
+          } catch (err) {
+            alert("送信エラー：" + err);
+            btn.disabled = false;
+            btn.textContent = "送信";
+          }
         });
 
-        // no-corsなのでレスポンスは読めない前提で、成功扱いにする
-        alert("応募を送信しました。ありがとうございます！");
-        if (liff.isInClient()) liff.closeWindow();
-      } catch (err) {
-        alert("送信エラー：" + err);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "送信";
+        // OKボタン → トークにメッセージ → 画面を閉じる
+        okBtn.addEventListener("click", async () => {
+          try {
+            await liff.sendMessages([
+              {
+                type: "text",
+                text: "ご応募ありがとうございます！\n担当者より追ってご連絡いたします。（TECHS）"
+              }
+            ]);
+          } catch (e) {
+            console.error(e);
+          } finally {
+            if (liff.isInClient()) {
+              liff.closeWindow();
+            }
+          }
+        });
       }
-    });
-  }
 
-  function v(id) {
-    const el = document.getElementById(id);
-    return el ? el.value.trim() : "";
-  }
+      function v(id) {
+        const el = document.getElementById(id);
+        return el ? el.value.trim() : "";
+      }
 
-  init();
-</script>
-
+      init();
+    </script>
   </body>
 </html>
