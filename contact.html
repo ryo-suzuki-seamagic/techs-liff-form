@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TECHS お問い合わせ</title>
+    <style>
+      body{font-family:'Noto Sans JP',sans-serif;padding:20px}
+      h2{color:#ff6a00}
+      label{display:block;margin-top:10px;font-weight:600}
+      input,textarea,select{
+        width:100%;
+        padding:8px;
+        margin-top:4px;
+        border-radius:8px;
+        border:1px solid #ccc;
+        box-sizing:border-box;
+      }
+      button{
+        width:100%;
+        padding:10px;
+        margin-top:20px;
+        border:none;
+        background:#ff6a00;
+        color:#fff;
+        font-weight:bold;
+        border-radius:10px;
+      }
+      #thanks p{
+        margin-top:10px;
+        line-height:1.6;
+        text-align:center;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>TECHS お問い合わせ</h2>
+    <p>ご質問・ご依頼など、お気軽にお送りください。</p>
+
+    <!-- フォームエリア -->
+    <div id="formArea">
+      <label>お名前<span style="color:#e00;font-size:0.85em;">（必須）</span></label>
+      <input id="name">
+
+      <label>電話番号（どちらか必須）</label>
+      <input id="tel">
+
+      <label>メールアドレス（どちらか必須）</label>
+      <input id="email">
+
+      <label>お問い合わせ区分</label>
+      <select id="category">
+        <option value="警備のご依頼">警備のご依頼</option>
+        <option value="採用について">採用について</option>
+        <option value="その他">その他</option>
+      </select>
+
+      <label>お問い合わせ内容<span style="color:#e00;font-size:0.85em;">（必須）</span></label>
+      <textarea id="body"></textarea>
+
+      <button id="sendBtn" type="button">送信</button>
+    </div>
+
+    <!-- サンクス画面 -->
+    <div id="thanks" style="display:none;">
+      <p>
+        お問い合わせありがとうございます。<br>
+        内容を確認のうえ、担当者よりご連絡いたします。
+      </p>
+      <button id="okBtn" type="button">OK</button>
+    </div>
+
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script>
+      const LIFF_ID = "https://liff.line.me/2008387877-MpBpoE96";  // ★新しく作るLIFF ID
+      const API_URL = "https://script.google.com/macros/s/AKfycbxkB-8kwIDfhHdcNyV984KuWia_4nNi1pEp_2DPJYg2fa6REzityta4Y4q8nHKTe7m-Ug/exec";  // ★さっきデプロイしたGASのURL
+      const SECRET = "TECHS2025";
+
+      async function init() {
+        await liff.init({ liffId: LIFF_ID });
+
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
+
+        const profile = await liff.getProfile();
+
+        const btn = document.getElementById("sendBtn");
+        const formArea = document.getElementById("formArea");
+        const thanks = document.getElementById("thanks");
+        const okBtn = document.getElementById("okBtn");
+
+        btn.addEventListener("click", async () => {
+          const name = v("name");
+          const tel = v("tel");
+          const email = v("email");
+          const category = v("category");
+          const body = v("body");
+
+          // ▼バリデーション
+          const errors = [];
+          if (!name) errors.push("お名前を入力してください。");
+          if (!tel && !email) {
+            errors.push("電話番号またはメールアドレスを入力してください。");
+          }
+          if (email) {
+            if (!(email.includes("@") && email.includes("."))) {
+              errors.push("メールアドレスの形式が正しくありません。");
+            }
+          }
+          if (!body) errors.push("お問い合わせ内容を入力してください。");
+
+          if (errors.length > 0) {
+            alert(errors.join("\n"));
+            return;
+          }
+
+          const data = {
+            token: SECRET,
+            form: {
+              name: name,
+              phone: tel,
+              email: email,
+              category: category,
+              body: body
+            },
+            user: {
+              userId: profile.userId,
+              displayName: profile.displayName
+            }
+          };
+
+          btn.disabled = true;
+          btn.textContent = "送信中...";
+
+          try {
+            await fetch(API_URL, {
+              method: "POST",
+              mode: "no-cors",
+              body: JSON.stringify(data)
+            });
+
+            formArea.style.display = "none";
+            thanks.style.display = "block";
+          } catch (err) {
+            alert("送信エラー：" + err);
+            btn.disabled = false;
+            btn.textContent = "送信";
+          }
+        });
+
+        // OK → トークにお礼メッセージ → ウィンドウ閉じる
+        okBtn.addEventListener("click", async () => {
+          try {
+            await liff.sendMessages([
+              {
+                type: "text",
+                text: "お問い合わせありがとうございます。\n担当者よりご連絡いたします。（TECHS）"
+              }
+            ]);
+          } catch (e) {
+            console.error(e);
+          } finally {
+            if (liff.isInClient()) {
+              liff.closeWindow();
+            }
+          }
+        });
+      }
+
+      function v(id) {
+        const el = document.getElementById(id);
+        return el ? el.value.trim() : "";
+      }
+
+      init();
+    </script>
+  </body>
+</html>
