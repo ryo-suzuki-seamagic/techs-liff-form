@@ -45,7 +45,7 @@
       <label>電話番号<span style="color:#e00;font-size:0.85em;">（必須）</span></label>
       <input id="tel">
 
-      <label>メールアドレス（任意）</label>
+      <label>メールアドレス<span style="color:#e00;font-size:0.85em;">（必須）</span></label>
       <input id="email">
 
       <!-- ↓ここをプルダウンに変更 -->
@@ -56,16 +56,6 @@
         <option value="1〜3年">1〜3年</option>
         <option value="3年以上">3年以上</option>
       </select>
-
-      <label>資格（任意）</label>
-      <input id="license">
-
-      <label>居住区（任意）</label>
-      <input id="address">
-
-      <label>志望動機（任意）</label>
-      <textarea id="motivation"></textarea>
-
       <button id="sendBtn" type="button">送信</button>
     </div>
 
@@ -114,6 +104,9 @@
           }
           if (!tel) {
             errors.push("電話番号を入力してください。");
+          }
+          if (!email) {
+            errors.push("メールアドレスを入力してください。");
           }
           if (email) {
             // めちゃシンプルに「@ と . が両方含まれているか」だけチェック
